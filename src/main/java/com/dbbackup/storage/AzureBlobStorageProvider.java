@@ -1,11 +1,14 @@
 package com.dbbackup.storage;
 
+import com.azure.core.util.Context;
 import com.azure.storage.blob.BlobClient;
 import com.azure.storage.blob.BlobContainerClient;
 import com.azure.storage.blob.BlobServiceClient;
 import com.azure.storage.blob.BlobServiceClientBuilder;
 import com.azure.storage.blob.models.BlobItem;
 import com.azure.storage.blob.models.ListBlobsOptions;
+import com.azure.storage.blob.options.BlobParallelUploadOptions;
+import com.azure.storage.blob.specialized.BlockBlobClient;
 import com.dbbackup.domain.port.StorageProvider;
 import org.springframework.stereotype.Component;
 
@@ -44,13 +47,22 @@ public class AzureBlobStorageProvider implements StorageProvider {
     @Override
     public void store(InputStream input, String destinationPath, long size) throws IOException {
         AzureTarget target = parseUri(destinationPath);
-        BlobContainerClient containerClient = getBlobServiceClient().getBlobContainerClient(target.container());
-        if (!containerClient.exists()) {
-            containerClient.create();
+        try {
+            BlobContainerClient containerClient = getBlobServiceClient().getBlobContainerClient(target.container());
+            if (!containerClient.exists()) {
+                containerClient.create();
+            }
+            BlobClient blobClient = containerClient.getBlobClient(target.blob());
+            if (size > 0) {
+                BlockBlobClient blockBlobClient = blobClient.getBlockBlobClient();
+                blockBlobClient.upload(input, size, true);
+            } else {
+                BlobParallelUploadOptions options = new BlobParallelUploadOptions(input);
+                blobClient.uploadWithResponse(options, null, Context.NONE);
+            }
+        } catch (Exception e) {
+            throw new IOException("Failed to store blob to Azure Storage: " + destinationPath, e);
         }
-        BlobClient blobClient = containerClient.getBlobClient(target.blob());
-        long uploadSize = size > 0 ? size : input.available();
-        blobClient.getBlockBlobClient().upload(input, uploadSize, true);
     }
 
     @Override
