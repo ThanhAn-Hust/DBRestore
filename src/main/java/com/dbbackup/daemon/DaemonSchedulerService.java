@@ -2,6 +2,7 @@ package com.dbbackup.daemon;
 
 import com.dbbackup.config.ProfileConfigResolver;
 import com.dbbackup.domain.model.*;
+import com.dbbackup.retention.RetentionRule;
 import com.dbbackup.service.BackupOrchestrator;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
@@ -163,16 +164,28 @@ public class DaemonSchedulerService {
         try {
             LOGGER.info("Starting execution of job '" + jobId + "'");
             DbConnectionConfig pConn = ProfileConfigResolver.resolveProfile(job.profile());
-            String dbType = pConn != null ? pConn.dbType() : "mysql";
-            String host = pConn != null ? pConn.host() : "localhost";
-            int port = pConn != null ? pConn.port() : 3306;
-            String user = pConn != null ? pConn.username() : "root";
-            String pass = pConn != null ? pConn.password() : "";
-            String dbName = pConn != null ? pConn.databaseName() : "mydb";
+            String dbType = (pConn != null && pConn.dbType() != null) ? pConn.dbType() : "mysql";
+            String host = (pConn != null && pConn.host() != null) ? pConn.host() : "localhost";
+            int port = (pConn != null && pConn.port() > 0) ? pConn.port() : (dbType.equalsIgnoreCase("postgresql") ? 5432 : 3306);
+            String user = (pConn != null && pConn.username() != null) ? pConn.username() : "root";
+            String pass = (pConn != null && pConn.password() != null) ? pConn.password() : "";
+            String dbName = (pConn != null && pConn.databaseName() != null) ? pConn.databaseName() : "mydb";
 
             DbConnectionConfig dbConn = new DbConnectionConfig(dbType, host, port, user, pass, dbName);
             BackupType backupType = parseBackupType(job.backupType());
 
+            RetentionRule retentionRule = null;
+            if (job.retention() != null && !job.retention().isEmpty()) {
+                Object keepLastObj = job.retention().get("keep-last");
+                Object daysObj = job.retention().get("retention-days");
+                int keepLast = (keepLastObj instanceof Number n) ? n.intValue() : 0;
+                int days = (daysObj instanceof Number n) ? n.intValue() : 0;
+                if (keepLast > 0 || days > 0) {
+                    retentionRule = new RetentionRule(keepLast > 0 ? keepLast : 1, days);
+                }
+            }
+
+            String destUri = (job.output() != null && !job.output().isBlank()) ? job.output() : "file:///backups/" + dbName + ".sql.gz";
             BackupConfig config = new BackupConfig(
                 dbConn,
                 backupType,
@@ -181,7 +194,7 @@ public class DaemonSchedulerService {
                 true,
                 job.encrypt(),
                 job.passphrase(),
-                job.output() != null ? job.output() : "file:///backups/" + dbName + ".sql.gz",
+                destUri,
                 null,
                 null,
                 job.singleTransaction() ? Map.of("single-transaction", true) : Map.of()
@@ -189,8 +202,8 @@ public class DaemonSchedulerService {
 
             backupOrchestrator.executeBackup(config);
             LOGGER.info("Job '" + jobId + "' executed successfully.");
-        } catch (Exception e) {
-            LOGGER.log(Level.SEVERE, "Error executing job '" + jobId + "'", e);
+        } catch (Throwable t) {
+            LOGGER.log(Level.SEVERE, "Error executing job '" + jobId + "'", t);
         } finally {
             activeJobThreads.remove(jobId, Thread.currentThread());
         }

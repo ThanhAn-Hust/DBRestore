@@ -65,11 +65,11 @@ public class RestoreCommands {
                 DbConnectionConfig pConn = ProfileConfigResolver.resolveProfile(profile);
                 String fType = (dbType != null && !dbType.isBlank()) ? dbType : (pConn != null ? pConn.dbType() : "mysql");
                 String fHost = (host != null && !host.isBlank()) ? host : (pConn != null ? pConn.host() : "localhost");
-                int fPort = port > 0 ? port : (pConn != null ? pConn.port() : 3306);
+                int targetPort = port > 0 ? port : (pConn != null ? pConn.port() : (fType.equalsIgnoreCase("postgresql") || fType.equalsIgnoreCase("postgres") ? 5432 : 3306));
                 String fUser = (username != null && !username.isBlank()) ? username : (pConn != null ? pConn.username() : "root");
                 String fPass = (password != null && !password.isBlank()) ? password : (pConn != null ? pConn.password() : "");
                 String fDb = (database != null && !database.isBlank()) ? database : (pConn != null ? pConn.databaseName() : "mydb");
-                conn = new DbConnectionConfig(fType, fHost, fPort, fUser, fPass, fDb);
+                conn = new DbConnectionConfig(fType, fHost, targetPort, fUser, fPass, fDb);
             }
 
             restoreOrchestrator.restoreChain(backupId, passphrase, conn);

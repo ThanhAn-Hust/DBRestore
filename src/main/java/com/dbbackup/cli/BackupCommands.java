@@ -13,6 +13,7 @@ import org.springframework.shell.standard.ShellMethod;
 import org.springframework.shell.standard.ShellOption;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @ShellComponent
 @Command(command = "backup", group = "Backup Commands")
@@ -135,6 +136,10 @@ public class BackupCommands {
             List<String> tableList = parseTables(tables);
             String storageUri = (output != null && !output.isBlank()) ? output : "file:///backups/" + conn.databaseName() + ".sql.gz";
 
+            List<String> notificationChannels = (notify != null && !notify.isBlank())
+                    ? Arrays.stream(notify.split(",")).map(String::trim).filter(s -> !s.isEmpty()).collect(Collectors.toList())
+                    : null;
+
             BackupConfig config = new BackupConfig(
                 conn,
                 backupType,
@@ -146,7 +151,7 @@ public class BackupCommands {
                 storageUri,
                 null,
                 null,
-                Map.of()
+                Map.of("single-transaction", true)
             );
 
             BackupHistoryRecord record = backupOrchestrator.executeBackup(config);
