@@ -29,7 +29,7 @@ public class CredentialManager {
         File getFile();
         Path getPath();
         @Override
-        void close();
+        void close() throws IOException;
     }
 
     public static Path getTempDir() {
@@ -60,18 +60,32 @@ public class CredentialManager {
     }
 
     public static TempCredentialHandle createTempMyCnf(String user, String password) throws IOException {
-        Path tempDir = getTempDir();
-        if (!Files.exists(tempDir)) {
-            Files.createDirectories(tempDir);
+        if (user != null && (user.contains("\n") || user.contains("\r"))) {
+            throw new IllegalArgumentException("Username contains illegal newline characters");
+        }
+        if (password != null && (password.contains("\n") || password.contains("\r"))) {
+            throw new IllegalArgumentException("Password contains illegal newline characters");
         }
 
-        Path tempFile = Files.createTempFile(tempDir, "mysql-", ".cnf");
+        Path tempDir = getTempDir();
+        Files.createDirectories(tempDir);
+
+        Path tempFile;
+        boolean isWin = System.getProperty("os.name").toLowerCase().contains("win");
+        if (!isWin) {
+            FileAttribute<Set<PosixFilePermission>> attr = PosixFilePermissions.asFileAttribute(
+                    EnumSet.of(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE)
+            );
+            tempFile = Files.createTempFile(tempDir, "mysql-", ".cnf", attr);
+        } else {
+            tempFile = Files.createTempFile(tempDir, "mysql-", ".cnf");
+            applyStrictPermissions(tempFile);
+        }
+
+        String content = String.format("[client]%nuser=%s%npassword=%s%n", user, password);
+        Files.writeString(tempFile, content);
+
         TRACKED_TEMP_FILES.add(tempFile);
-
-        String content = "[client]\nuser=" + user + "\npassword=" + password + "\n";
-        Files.writeString(tempFile, content, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING);
-
-        applyStrictPermissions(tempFile);
 
         return new TempCredentialHandle() {
             private boolean closed = false;
@@ -87,15 +101,11 @@ public class CredentialManager {
             }
 
             @Override
-            public synchronized void close() {
+            public void close() throws IOException {
                 if (!closed) {
                     closed = true;
                     TRACKED_TEMP_FILES.remove(tempFile);
-                    try {
-                        Files.deleteIfExists(tempFile);
-                    } catch (IOException e) {
-                        LOGGER.log(Level.WARNING, "Failed to delete temp credential file on close: " + tempFile, e);
-                    }
+                    Files.deleteIfExists(tempFile);
                 }
             }
         };
