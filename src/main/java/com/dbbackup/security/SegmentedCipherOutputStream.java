@@ -82,7 +82,7 @@ public class SegmentedCipherOutputStream extends FilterOutputStream {
         if (b == null) {
             throw new NullPointerException();
         }
-        if (off < 0 || len < 0 || off + len > b.length) {
+        if (off < 0 || len < 0 || len > b.length - off) {
             throw new IndexOutOfBoundsException();
         }
 
@@ -154,17 +154,22 @@ public class SegmentedCipherOutputStream extends FilterOutputStream {
     }
 
     public static SecretKey deriveKey(String passphrase, byte[] salt) throws IOException {
+        PBEKeySpec spec = new PBEKeySpec(passphrase.toCharArray(), salt, 65536, 256);
         try {
             SecretKeyFactory factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
-            KeySpec spec = new PBEKeySpec(passphrase.toCharArray(), salt, 65536, 256);
             SecretKey tmp = factory.generateSecret(spec);
             return new SecretKeySpec(tmp.getEncoded(), "AES");
         } catch (Exception e) {
             throw new IOException("Failed to derive secret key from passphrase", e);
+        } finally {
+            spec.clearPassword();
         }
     }
 
     public static byte[] deriveSegmentIv(byte[] baseIv, int index) {
+        if (baseIv == null || baseIv.length < BASE_IV_LENGTH) {
+            throw new IllegalArgumentException("Base IV must be at least " + BASE_IV_LENGTH + " bytes long");
+        }
         byte[] segmentIv = Arrays.copyOf(baseIv, baseIv.length);
         byte[] indexBytes = ByteBuffer.allocate(4).putInt(index).array();
         for (int i = 0; i < 4; i++) {

@@ -64,7 +64,7 @@ public class SegmentedCipherInputStream extends InputStream {
         if (b == null) {
             throw new NullPointerException();
         }
-        if (off < 0 || len < 0 || off + len > b.length) {
+        if (off < 0 || len < 0 || len > b.length - off) {
             throw new IndexOutOfBoundsException();
         }
         if (len == 0) {
@@ -95,11 +95,12 @@ public class SegmentedCipherInputStream extends InputStream {
         byte[] lengthBytes = new byte[4];
         int read = readOptional(in, lengthBytes);
         if (read < 4) {
-            if (read == 0 || read == -1) {
+            if (read == 0 && segmentIndex == 0) {
+                // Empty file case
                 eosReached = true;
                 return false;
             }
-            throw new EOFException("Premature end of stream while reading segment length");
+            throw new EOFException("Premature EOF encountered; encrypted stream is missing mandatory End-Of-Stream marker (truncated file)");
         }
 
         int segmentLength = ByteBuffer.wrap(lengthBytes).getInt();
