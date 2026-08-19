@@ -24,6 +24,7 @@
         <azure.sdk.version>12.25.2</azure.sdk.version>
         <gcp.sdk.version>2.34.0</gcp.sdk.version>
         <sqlite.version>3.45.1.0</sqlite.version>
+        <byte-buddy.version>1.18.12</byte-buddy.version>
     </properties>
 
     <dependencyManagement>
@@ -41,6 +42,16 @@
                 <version>${aws.sdk.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>net.bytebuddy</groupId>
+                <artifactId>byte-buddy</artifactId>
+                <version>${byte-buddy.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>net.bytebuddy</groupId>
+                <artifactId>byte-buddy-agent</artifactId>
+                <version>${byte-buddy.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
