@@ -6,10 +6,10 @@
 
 **Architecture:** Spring Shell CLI layer orchestrating streaming database engines (`ProcessBuilder`), encryption (`CipherOutputStream`), storage sinks (`StorageProvider`), audit logging (`AuditLogService`), and notification clients. 
 
-**Tech Stack:** Java 21, Spring Boot 3.3+, Spring Shell 3.x, SQLite (JDBC), AWS SDK v2, Azure Storage Blob SDK, Google Cloud Storage SDK, JUnit 5, Mockito, Testcontainers.
+**Tech Stack:** Java 25, Spring Boot 3.3+, Spring Shell 3.x, SQLite (JDBC), AWS SDK v2, Azure Storage Blob SDK, Google Cloud Storage SDK, JUnit 5, Mockito, Testcontainers.
 
 ## Global Constraints
-- Java 21 LTS compatibility.
+- Java 25 LTS compatibility.
 - Stream stdout directly without memory buffering (`ProcessBuilder` $\rightarrow$ `GZIPOutputStream` $\rightarrow$ `CipherOutputStream` $\rightarrow$ `StorageProvider`).
 - Pass credentials via environment variables (`MYSQL_PWD`, `PGPASSWORD`) or OS-restricted ACL file descriptors.
 - SQLite WAL mode for thread-safe concurrent audit logging.
@@ -70,7 +70,7 @@ Expected: FAIL (Classes and packages do not exist yet)
 
 - [ ] **Step 3: Write minimal implementation**
 
-Create Maven `pom.xml` with Java 21, Spring Boot 3.3.x, Spring Shell, SQLite JDBC, JUnit 5, and Lombok/Jackson. Create domain models & interfaces.
+Create Maven `pom.xml` with Java 25, Spring Boot 3.3.x, Spring Shell, SQLite JDBC, JUnit 5, and Lombok/Jackson. Create domain models & interfaces.
 
 - [ ] **Step 4: Run test to verify it passes**
 
