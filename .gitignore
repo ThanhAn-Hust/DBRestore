@@ -2,5 +2,7 @@ target/
 .m2/
 .idea/
 *.iml
+.vscode/
 .DS_Store
+*.log
 src/test/
