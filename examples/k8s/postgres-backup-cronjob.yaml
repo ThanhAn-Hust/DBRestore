@@ -1,0 +1,60 @@
+﻿apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-nightly-backup
+spec:
+  schedule: "0 2 * * *"
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: pg-backup-runner
+              image: ghcr.io/dbbackup/db-backup:1.0.0
+              args:
+                - "backup"
+                - "--db-type"
+                - "postgresql"
+                - "--host"
+                - "postgres-service.default.svc.cluster.local"
+                - "--port"
+                - "5432"
+                - "--user"
+                - "postgres"
+                - "--database"
+                - "production_db"
+                - "--type"
+                - "FULL"
+                - "--encrypt"
+                - "true"
+                - "--output"
+                - "s3://my-k8s-backups/postgres/nightly.sql.gz"
+                - "--notify"
+                - "slack,telegram"
+              env:
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: pg-secret
+                      key: postgres-password
+                - name: BACKUP_PASSPHRASE
+                  valueFrom:
+                    secretKeyRef:
+                      name: backup-secrets
+                      key: encryption-key
+                - name: AWS_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: aws-credentials
+                      key: access-key-id
+                - name: AWS_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: aws-credentials
+                      key: secret-access-key
+                - name: AWS_REGION
+                  value: "ap-southeast-1"

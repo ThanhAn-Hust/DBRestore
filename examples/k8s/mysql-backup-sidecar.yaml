@@ -1,0 +1,74 @@
+﻿apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql-with-backup
+  labels:
+    app: mysql-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql-app
+  template:
+    metadata:
+      labels:
+        app: mysql-app
+    spec:
+      containers:
+        # Main Database Container
+        - name: mysql
+          image: mysql:8.0
+          ports:
+            - containerPort: 3306
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: root-password
+          volumeMounts:
+            - name: mysql-persistent-storage
+              mountPath: /var/lib/mysql
+
+        # Sidecar Backup Daemon Container
+        - name: db-backup-sidecar
+          image: ghcr.io/dbbackup/db-backup:1.0.0
+          command: ["daemon", "start", "--config", "/etc/db-backup/schedule.yml"]
+          env:
+            - name: DB_USER
+              value: "root"
+            - name: DB_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: root-password
+            - name: BACKUP_PASSPHRASE
+              valueFrom:
+                secretKeyRef:
+                  name: backup-secrets
+                  key: aes-passphrase
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: cloud-secrets
+                  key: aws-key
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: cloud-secrets
+                  key: aws-secret
+          volumeMounts:
+            - name: backup-config-volume
+              mountPath: /etc/db-backup
+            - name: backup-local-cache
+              mountPath: /backups
+
+      volumes:
+        - name: mysql-persistent-storage
+          persistentVolumeClaim:
+            claimName: mysql-pvc
+        - name: backup-config-volume
+          configMap:
+            name: db-backup-config
+        - name: backup-local-cache
+          emptyDir: {}
