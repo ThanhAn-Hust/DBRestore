@@ -18,6 +18,10 @@ public class PromptReader {
         this.out = out;
     }
 
+    public PrintStream getOut() {
+        return out;
+    }
+
     public String readString(String prompt, String defaultValue) {
         if (defaultValue != null && !defaultValue.isBlank()) {
             out.print(AnsiColor.cyan(prompt) + " [" + AnsiColor.yellow(defaultValue) + "]: ");
