@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-03  
 **Status:** Approved / Revision 6 (Final Complete Specification)  
-**Target Stack:** Java 21, Spring Boot 3.3+, Spring Shell 3.x  
+**Target Stack:** Java 25, Spring Boot 3.3+, Spring Shell 3.x
 
 ---
 

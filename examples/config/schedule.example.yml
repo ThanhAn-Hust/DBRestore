@@ -1,0 +1,25 @@
+﻿jobs:
+  - id: daily-full-mysql
+    profile: prod-mysql
+    cron: "0 0 2 * * *"
+    backup-type: FULL
+    single-transaction: true
+    encrypt: true
+    passphrase: ${BACKUP_PASSPHRASE:SuperSecretAesKey}
+    output: "s3://company-backups/mysql/daily.sql.gz"
+    on-overlap: SKIP
+    retention:
+      keep-last: 7
+      retention-days: 30
+    notifications:
+      - telegram
+      - slack
+
+  - id: hourly-incremental-mysql
+    profile: prod-mysql
+    cron: "0 0 * * * *"
+    backup-type: INCREMENTAL
+    encrypt: true
+    passphrase: ${BACKUP_PASSPHRASE:SuperSecretAesKey}
+    output: "s3://company-backups/mysql/hourly.sql.gz"
+    on-overlap: QUEUE
