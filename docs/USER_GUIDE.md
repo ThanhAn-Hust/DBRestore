@@ -1,12 +1,12 @@
-﻿# DBBackup User & Configuration Guide
+﻿# Cẩm Nang Người Dùng & Hướng Dẫn Cấu Hình (DBBackup User Guide)
 
-This comprehensive guide details the configuration files, CLI options, encryption standards, cloud storage configurations, and notification webhooks supported by `db-backup`.
+Tài liệu này hướng dẫn chi tiết các cấu hình, toàn bộ danh mục câu lệnh CLI, định dạng mã hóa AES-GCM, kết nối Cloud Storage và thiết lập thông báo qua Webhook.
 
 ---
 
-## 1. Configuration Profiles (`~/.db-backup/config.yml`)
+## 1. Cấu Hình Hồ Sơ Cơ Sở Dữ Liệu (`~/.db-backup/config.yml`)
 
-Instead of specifying host, user, and credentials on every CLI invocation, you can define profiles in `~/.db-backup/config.yml`. Environment variable substitutions (e.g. `${ENV_VAR}` or `${ENV_VAR:default}`) are automatically expanded.
+Để không phải nhập lại host, port, username, password mỗi lần chạy lệnh, bạn có thể tạo các Profile trong file `~/.db-backup/config.yml`. File này tự động hỗ trợ đọc biến môi trường hệ thống định dạng `${ENV_VAR}` hoặc `${ENV_VAR:default}`.
 
 ```yaml
 profiles:
@@ -29,31 +29,31 @@ profiles:
 
 ---
 
-## 2. Daemon Schedule Configuration (`~/.db-backup/schedule.yml`)
+## 2. Cấu Hình Lập Lịch Cron Ngầm (`~/.db-backup/schedule.yml`)
 
-The background daemon parses `schedule.yml` and executes jobs according to standard 5-part or 6-part cron expressions.
+Daemon scheduler chạy ngầm sẽ đọc file `schedule.yml` và kích hoạt sao lưu theo biểu thức Cron (hỗ trợ cả chuẩn 5 phần hoặc 6 phần).
 
 ```yaml
 jobs:
   - id: daily-mysql-full
     profile: mysql-prod
-    cron: "0 0 2 * * *"               # 02:00 AM daily
+    cron: "0 0 2 * * *"               # Chạy lúc 02:00 sáng mỗi ngày
     backup-type: FULL
     single-transaction: true
     encrypt: true
-    passphrase: ${BACKUP_PASSPHRASE}
+    passphrase: ${BACKUP_PASSPHRASE}  # Mật khẩu mã hoá AES-GCM
     output: "s3://company-prod-backups/mysql/daily.sql.gz"
-    on-overlap: SKIP                  # Options: SKIP, QUEUE, CANCEL_PREVIOUS
+    on-overlap: SKIP                  # Tùy chọn: SKIP (bỏ qua), QUEUE (xếp hàng), CANCEL_PREVIOUS (hủy job trước)
     retention:
-      keep-last: 7                    # Retain last 7 complete chains
-      retention-days: 30              # Delete cohorts older than 30 days
+      keep-last: 7                    # Luôn giữ lại 7 chuỗi backup gần nhất
+      retention-days: 30              # Xóa các chuỗi quá 30 ngày
     notifications:
       - telegram
       - slack
 
   - id: hourly-mysql-incremental
     profile: mysql-prod
-    cron: "0 0 * * * *"               # Every hour
+    cron: "0 0 * * * *"               # Chạy mỗi đầu giờ
     backup-type: INCREMENTAL
     encrypt: true
     passphrase: ${BACKUP_PASSPHRASE}
@@ -65,70 +65,87 @@ jobs:
 
 ---
 
-## 3. Storage Destination URIs
+## 3. Định Dạng Đường Dẫn Lưu Trữ (Storage URIs)
 
-`db-backup` detects the destination protocol automatically via URI scheme:
+Hệ thống tự động nhận diện Storage Adapter qua tiền tố URI:
 
-| Storage Type | URI Format Example | Required Environment Variables |
+| Loại Lưu Trữ | Ví Dụ URI | Biến Môi Trường Cần Thiết |
 |---|---|---|
-| **Local / NFS** | `file:///var/backups/db.sql.gz` | None |
-| **AWS S3** | `s3://my-bucket/backups/db.sql.gz` | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` |
-| **Azure Blob** | `azure://container-name/path/db.sql.gz` | `AZURE_STORAGE_CONNECTION_STRING` or Azure Managed Identity |
-| **Google Cloud**| `gs://bucket-name/path/db.sql.gz` | `GOOGLE_APPLICATION_CREDENTIALS` |
+| **Local / NFS** | `file:///var/backups/db.sql.gz` | Không cần |
+| **AWS S3 / MinIO** | `s3://my-bucket/backups/db.sql.gz` | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` |
+| **Azure Blob Storage** | `azure://container-name/path/db.sql.gz` | `AZURE_STORAGE_CONNECTION_STRING` |
+| **Google Cloud Storage**| `gs://bucket-name/path/db.sql.gz` | `GOOGLE_APPLICATION_CREDENTIALS` |
 
 ---
 
-## 4. Multi-Channel Notifications Configuration
+## 4. Cấu Hình Thông Báo Đa Kênh (Notifications)
 
-Configure webhook tokens via environment variables:
+Bạn chỉ cần truyền các biến môi trường sau cho hệ thống:
 
-### Telegram
-- Variable: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`
-- Formats status with HTML tags (`<b>`, `•`), duration, backup ID, and byte size.
+### 1. Telegram
+- Biến môi trường: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`
+- Định dạng: Tin nhắn HTML chứa trạng thái, tên database, dung lượng byte, thời gian thực thi và mã bản sao lưu.
 
-### Slack
-- Variable: `SLACK_WEBHOOK_URL`
-- Formats status with Slack Block Kit JSON header and markdown fields.
+### 2. Slack
+- Biến môi trường: `SLACK_WEBHOOK_URL`
+- Định dạng: Slack Block Kit JSON với Header và Section rõ ràng.
 
-### Discord
-- Variable: `DISCORD_WEBHOOK_URL`
-- Formats status with Discord Embeds with Green (`0x2ECC71`) / Red (`0xE74C3C`) visual color coding.
+### 3. Discord
+- Biến môi trường: `DISCORD_WEBHOOK_URL`
+- Định dạng: Discord Embeds với màu Xanh lá (`0x2ECC71`) khi thành công và màu Đỏ (`0xE74C3C`) khi thất bại.
 
 ---
 
-## 5. Complete CLI Command Reference
+## 5. Chi Tiết Danh Mục Các Lệnh CLI
 
-### `test-connection`
+### 🔹 Lệnh 1: `test-connection`
+Kiểm tra kết nối trực tiếp hoặc qua Profile:
 ```bash
-db-backup test-connection [--profile <name>] [--db-type <mysql|postgresql>] [--host <host>] [--port <port>] [--user <user>] [--password <pass>] [--database <db>]
+db-backup test-connection --profile mysql-prod
+# Hoặc truyền tham số trực tiếp:
+db-backup test-connection --db-type postgresql --host localhost --port 5432 --user postgres --password "secret" --database my_db
 ```
 
-### `backup`
+### 🔹 Lệnh 2: `backup`
+Thực hiện sao lưu:
+- `--profile`: Tên profile trong `config.yml`.
+- `--type`: `FULL` (toàn phần), `INCREMENTAL` (tăng dần), `DIFFERENTIAL` (khác biệt).
+- `--tables`: Danh sách bảng phân tách bằng dấu phẩy (vd: `users,orders`).
+- `--encrypt`: `true` hoặc `false`.
+- `--passphrase`: Mật khẩu mã hoá AES-256-GCM.
+- `--output`: Đường dẫn đích (`s3://...`, `azure://...`, `gs://...`, `file://...`).
+- `--notify`: Kênh nhận thông báo (`telegram`, `slack`, `discord`).
+
+Ví dụ:
 ```bash
 db-backup backup \
-  --profile <profile-name> \
-  --type <FULL|INCREMENTAL|DIFFERENTIAL> \
-  --tables <table1,table2> \
-  --encrypt <true|false> \
-  --passphrase <encryption-passphrase> \
-  --output <destination-uri> \
-  --notify <telegram,slack,discord>
+  --profile mysql-prod \
+  --type FULL \
+  --encrypt true \
+  --passphrase "MySecretPassphrase2026" \
+  --output "s3://prod-backups/mysql/ecommerce.sql.gz" \
+  --notify "telegram,slack"
 ```
 
-### `restore`
+### 🔹 Lệnh 3: `restore`
+Khôi phục dữ liệu từ bản sao lưu:
+- `--backup-id`: Mã ID của bản backup mục tiêu (vd: `b-1723456890-a1b2c3d4`).
+- `--passphrase`: Mật khẩu giải mã nếu bản backup đã được mã hóa.
+- `--profile`: Profile của database nhận dữ liệu khôi phục (nếu muốn restore sang DB khác).
+
+Ví dụ:
 ```bash
-db-backup restore \
-  --backup-id <backup-id> \
-  --passphrase <encryption-passphrase> \
-  [--profile <target-profile>]
+db-backup restore --backup-id "b-1723456890-a1b2c3d4" --passphrase "MySecretPassphrase2026"
 ```
 
-### `history`
+### 🔹 Lệnh 4: `history`
+Xem lịch sử sao lưu đã lưu trong SQLite WAL:
 ```bash
-db-backup history [--profile <profile-name>] [--limit <number>]
+db-backup history --profile mysql-prod --limit 10
 ```
 
-### `daemon start`
+### 🔹 Lệnh 5: `daemon start`
+Khởi động background daemon chạy lập lịch:
 ```bash
-db-backup daemon start [--config <path-to-schedule.yml>]
+db-backup daemon start --config ~/.db-backup/schedule.yml
 ```
