@@ -17,6 +17,9 @@ import org.yaml.snakeyaml.Yaml;
 
 @Component
 public class TestConnectionWizard {
+    private static final String DB_POSTGRESQL = "postgresql";
+    private static final String DB_MYSQL = "mysql";
+
     private final MySqlEngine mySqlEngine = new MySqlEngine();
     private final PostgresEngine postgresEngine = new PostgresEngine();
     private final I18nService i18n;
@@ -50,7 +53,7 @@ public class TestConnectionWizard {
 
         reader.printInfo(i18n.getMessage("test_conn.testing", config.host(), String.valueOf(config.port()), config.databaseName()));
         try {
-            ProcessBuilder pb = "postgresql".equalsIgnoreCase(config.dbType()) || "postgres".equalsIgnoreCase(config.dbType())
+            ProcessBuilder pb = DB_POSTGRESQL.equalsIgnoreCase(config.dbType()) || "postgres".equalsIgnoreCase(config.dbType())
                     ? postgresEngine.testConnection(config)
                     : mySqlEngine.testConnection(config);
             Process process = pb.start();
@@ -60,6 +63,9 @@ public class TestConnectionWizard {
             } else {
                 reader.printError(i18n.getMessage("test_conn.failed", config.databaseName(), "Process returned exit code " + exitCode));
             }
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            reader.printError(i18n.getMessage("test_conn.failed", config.databaseName(), "Interrupted: " + ie.getMessage()));
         } catch (Exception e) {
             reader.printError(i18n.getMessage("test_conn.failed", config.databaseName(), e.getMessage()));
         }
@@ -68,13 +74,13 @@ public class TestConnectionWizard {
 
     private DbConnectionConfig promptCustomConfig(PromptReader reader) {
         int dbChoice = reader.readInt(i18n.getMessage("prompt.db_type"), 1, 2, 1);
-        String type = (dbChoice == 2) ? "postgresql" : "mysql";
-        int defaultPort = "postgresql".equals(type) ? 5432 : 3306;
+        String type = (dbChoice == 2) ? DB_POSTGRESQL : DB_MYSQL;
+        int defaultPort = DB_POSTGRESQL.equals(type) ? 5432 : 3306;
 
         String host = reader.readString(i18n.getMessage("prompt.host"), "127.0.0.1");
         int port = reader.readInt(i18n.getMessage("prompt.port"), 1, 65535, defaultPort);
         String database = reader.readString(i18n.getMessage("prompt.database"), "testdb");
-        String username = reader.readString(i18n.getMessage("prompt.username"), "postgresql".equals(type) ? "postgres" : "root");
+        String username = reader.readString(i18n.getMessage("prompt.username"), DB_POSTGRESQL.equals(type) ? "postgres" : "root");
         String password = reader.readPassword(i18n.getMessage("prompt.password"));
 
         return new DbConnectionConfig(type, host, port, username, password, database);
@@ -100,6 +106,7 @@ public class TestConnectionWizard {
                 }
             }
         } catch (Exception ignored) {
+            // Return empty or partial map on parse exception
         }
         return result;
     }
