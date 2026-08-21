@@ -1,0 +1,16 @@
+﻿profiles:
+  prod-mysql:
+    db-type: mysql
+    host: mysql-host
+    port: 3306
+    username: ${DB_USER:root}
+    password: ${DB_PASS:MySecretPass}
+    database: ecommerce_prod
+
+  prod-postgres:
+    db-type: postgresql
+    host: pg-host
+    port: 5432
+    username: ${PG_USER:postgres}
+    password: ${PG_PASS:SecurePassword}
+    database: finance_prod

@@ -1,0 +1,42 @@
+﻿services:
+  # Database Service
+  mysql:
+    image: mysql:8.0
+    container_name: demo-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: shopdb
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - db-net
+
+  # Sidecar Backup Daemon
+  db-backup-sidecar:
+    image: ghcr.io/dbbackup/db-backup:latest
+    container_name: demo-backup-daemon
+    restart: unless-stopped
+    depends_on:
+      - mysql
+    environment:
+      DB_USER: root
+      DB_PASS: rootpassword
+      BACKUP_PASSPHRASE: MyAesSecretPassphrase2026!
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-mock_key}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-mock_secret}
+      AWS_REGION: ap-southeast-1
+    volumes:
+      - ./examples/config/config.example.yml:/root/.db-backup/config.yml:ro
+      - ./examples/config/schedule.example.yml:/root/.db-backup/schedule.yml:ro
+      - backup-storage:/backups
+    command: ["daemon", "start", "--config", "/root/.db-backup/schedule.yml"]
+    networks:
+      - db-net
+
+volumes:
+  mysql-data:
+  backup-storage:
+
+networks:
+  db-net:
+    driver: bridge
